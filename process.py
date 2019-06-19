@@ -12,8 +12,7 @@ import string
 import calendar
 import time
 from datetime import date
-from datetime import datetime
-from httplib import *
+from httplib import HTTPSConnection
 #These dates are GMT, so they will not likely match your post time unless you are in the GMT/UTC time zone. 
 SINCE=calendar.timegm(date(2011,11,1).timetuple())
 UNTIL=calendar.timegm(date(2011,11,30).timetuple())
@@ -26,9 +25,9 @@ UNTIL=calendar.timegm(date(2011,11,30).timetuple())
 #URL Pattern: https://www.facebook.com/{usernamestring}/grid?lst=100002979822789%3A100002979822789%3A1560719298 
 INTERVAL=86400*1 #multiplier is the number of days that are in the request batch. Make sure it fits your date range neatly. 
 #Your FB user's API access token for your app (created above)
-TOKEN=''
+TOKEN='' #Fill this in
 #Your FB app user id
-APP_SCOPED_USER_ID=''
+APP_SCOPED_USER_ID='' #Fill this in
 #Your FBUSERID - official - this no longer works
 #APP_SCOPED_USER_ID ='' 
 privacy_setting='286958161406148' # only me
@@ -46,7 +45,12 @@ for cur_since in range(SINCE, UNTIL, INTERVAL):
     res = conn.getresponse()
     if res.status != 200:
         print "Get postids failed"
-        print res.read()
+        error = res.read()
+        print error
+        if res.status == 403:
+            d = json.loads(error)
+            print 'Error ' + str(res.status) + ' - ' + d['error']['message']
+        exit()        
 
     d = json.load(res)
 
@@ -64,10 +68,17 @@ for cur_since in range(SINCE, UNTIL, INTERVAL):
                 "&render_location_enum=stream&is_saved_on_select=true&should_return_tooltip=false&prefix_tooltip_with_app_privacy=false&replace_on_select=false&dpr=1&ent_id="+post_id, body, header)
         res2 = conn2.getresponse()
         print "Setting "+post_id+" ("+str(dd['created_time'])+") result code="+str(res2.status)
-        if res2.status != 200 and res2.status != 500:
-            print "*********************************"
-            print "Error: " + res2.read()
-            print "*********************************"
-        elif res2.status == 500:
-            print "Error (Unexpected): Sorry, something went wrong."
-            #print "Error: " + res2.read()
+        if res2.status != 200:
+            if res2.status == 500:
+                print "Error (Unexpected): Sorry, something went wrong."
+                #print "Error: " + res2.read()
+            elif res2.status == 403:
+                error = res2.read()
+                print error
+                d = json.loads(error)
+                print 'Error ' + str(res2.status) + ' - ' + d['error']['message']
+                exit()    
+            else:
+                print "*********************************"
+                print "Error: " + res2.read()
+                print "*********************************"   
